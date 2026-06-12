@@ -8,9 +8,10 @@ import (
 	"github.com/PaesslerAG/jsonpath"
 )
 
+var jsonPathRegex = regexp.MustCompile(`\$\.[a-zA-Z0-9_\[\]\.]+`)
+
 func Replace(input string, stepOutputs interface{}) string {
-	re := regexp.MustCompile(`\$\.[a-zA-Z0-9_\[\]\.]+`)
-	matches := re.FindAllString(input, -1)
+	matches := jsonPathRegex.FindAllString(input, -1)
 
 	for _, match := range matches {
 		value, err := jsonpath.Get(match, stepOutputs)

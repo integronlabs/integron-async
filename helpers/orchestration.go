@@ -17,6 +17,9 @@ func CreateStepsMap(stepsArray []interface{}) (map[string]interface{}, error) {
 		if !ok || name == "" {
 			return nil, fmt.Errorf("missing or invalid step name")
 		}
+		if _, exists := steps[name]; exists {
+			return nil, fmt.Errorf("duplicate step name: %s", name)
+		}
 		steps[name] = stepsMap
 	}
 	return steps, nil

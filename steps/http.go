@@ -64,11 +64,19 @@ func httpRequest(ctx context.Context, client *http.Client, method string, url st
 }
 
 func runHTTP(ctx context.Context, stepMap map[string]interface{}, stepOutputs map[string]interface{}) (interface{}, string, error) {
-	// get values
-	method, _ := stepMap["method"].(string)
-	url, _ := stepMap["url"].(string)
+	method, ok := stepMap["method"].(string)
+	if !ok || method == "" {
+		return nil, "error", fmt.Errorf("missing or invalid HTTP method")
+	}
+	url, ok := stepMap["url"].(string)
+	if !ok || url == "" {
+		return nil, "error", fmt.Errorf("missing or invalid HTTP url")
+	}
 	headers, _ := stepMap["headers"].(map[string]interface{})
-	responsesMap, _ := stepMap["responses"].(map[string]interface{})
+	responsesMap, ok := stepMap["responses"].(map[string]interface{})
+	if !ok {
+		return nil, "error", fmt.Errorf("missing or invalid responses map")
+	}
 
 	var requestBodyString *string
 	if bodyVal, exists := stepMap["body"]; exists {

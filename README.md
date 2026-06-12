@@ -122,6 +122,7 @@ Configure the following environment variables on your AWS Lambda function to cus
 | Variable | Description | Example |
 | :--- | :--- | :--- |
 | `ASYNCAPI_SPEC_SOURCE` | The location source of the AsyncAPI spec (`S3`, `SSM`, or `LOCAL`). | `S3` |
+| `ASYNCAPI_SPEC_LOCAL_PATH` | The local file path override for spec loading (optional for `LOCAL`, defaults to `docs/asyncapi.yaml`). | `/var/task/docs/asyncapi.yaml` |
 | `ASYNCAPI_SPEC_S3_BUCKET` | The S3 bucket name containing the spec (required for `S3`). | `my-configs-bucket` |
 | `ASYNCAPI_SPEC_S3_KEY` | The path key to the spec in the bucket (required for `S3`). | `asyncapi.yaml` |
 | `ASYNCAPI_SPEC_SSM_PARAM` | The SSM parameter name (required for `SSM`). | `/config/asyncapi` |
