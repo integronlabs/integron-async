@@ -30,7 +30,7 @@ func runTransformArray(ctx context.Context, stepMap map[string]interface{}, step
 	logrus.WithContext(ctx).Debugf("output: %v", output)
 	logrus.WithContext(ctx).Debugf("next: %v", next)
 
-	// replace placeholders in input
+	// resolve JSONPath expression in input
 	inputMap, err := jsonpath.Get(inputString, stepOutputs)
 	if err != nil {
 		logrus.WithContext(ctx).Errorf("could not read value from input: %v", err)

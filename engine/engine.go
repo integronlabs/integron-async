@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 
@@ -183,18 +182,7 @@ func ProcessStep(ctx context.Context, currentStepKey string, stepsMap map[string
 				stepOutputs["error"] = fmt.Sprintf("%v", stepInput)
 			}
 		}
-		if handler, exists := steps.GetStepHandler("error"); exists {
-			return handler(ctx, stepMap, stepOutputs)
-		}
-		var err error
-		if inputErr, ok := stepInput.(error); ok {
-			err = inputErr
-		} else if inputStr, ok := stepInput.(string); ok {
-			err = errors.New(inputStr)
-		} else {
-			err = errors.New("error step triggered")
-		}
-		return nil, "end", err
+		return handler(ctx, stepMap, stepOutputs)
 	}
 
 	stepOutput, next, err := handler(ctx, stepMap, stepOutputs)

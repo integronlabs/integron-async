@@ -91,6 +91,23 @@ func runHTTP(ctx context.Context, stepMap map[string]interface{}, stepOutputs ma
 		}
 		s := string(requestBodyJson)
 		requestBodyString = &s
+
+		// Default Content-Type to application/json if not explicitly set
+		hasContentType := false
+		if headers != nil {
+			for k := range headers {
+				if strings.EqualFold(k, "content-type") {
+					hasContentType = true
+					break
+				}
+			}
+		} else {
+			headers = make(map[string]interface{})
+			stepMap["headers"] = headers
+		}
+		if !hasContentType {
+			headers["Content-Type"] = "application/json"
+		}
 	}
 
 	resp, err := httpRequest(ctx, httpClient, method, url, requestBodyString, headers, stepOutputs)
