@@ -20,8 +20,7 @@ import (
 
 var (
 	workflowEngine *engine.Engine
-	initOnce       sync.Once
-	initErr        error
+	initMu         sync.RWMutex
 )
 
 func init() {
@@ -64,39 +63,47 @@ func loadSpec(ctx context.Context, localSpecPath string) ([]byte, error) {
 	}
 }
 
-func initEngine(ctx context.Context) {
+func initEngine(ctx context.Context) (*engine.Engine, error) {
 	specData, err := loadSpec(ctx, "docs/asyncapi.yaml")
 	if err != nil {
-		initErr = fmt.Errorf("failed to load spec: %w", err)
-		return
+		return nil, fmt.Errorf("failed to load spec: %w", err)
 	}
 
 	doc, err := asyncapi.Parse(specData)
 	if err != nil {
-		initErr = fmt.Errorf("failed to parse spec: %w", err)
-		return
+		return nil, fmt.Errorf("failed to parse spec: %w", err)
 	}
 
 	topicMap, err := doc.GetTopicToOperationMap()
 	if err != nil {
-		initErr = fmt.Errorf("failed to map topics: %w", err)
-		return
+		return nil, fmt.Errorf("failed to map topics: %w", err)
 	}
 
-	workflowEngine = engine.NewEngine(topicMap)
+	return engine.NewEngine(topicMap), nil
 }
 
 // lambdaHandler is the entrypoint when running as an AWS Lambda function
 func lambdaHandler(ctx context.Context, records []engine.KafkaRecord) (engine.BatchResponse, error) {
-	initOnce.Do(func() {
-		initEngine(ctx)
-	})
-	if initErr != nil {
-		logrus.WithContext(ctx).Errorf("Failed to initialize engine: %v", initErr)
-		return engine.BatchResponse{}, initErr
+	initMu.RLock()
+	eng := workflowEngine
+	initMu.RUnlock()
+
+	if eng == nil {
+		initMu.Lock()
+		if workflowEngine == nil {
+			var err error
+			workflowEngine, err = initEngine(ctx)
+			if err != nil {
+				initMu.Unlock()
+				logrus.WithContext(ctx).Errorf("Failed to initialize engine: %v", err)
+				return engine.BatchResponse{}, err
+			}
+		}
+		eng = workflowEngine
+		initMu.Unlock()
 	}
 
-	return workflowEngine.ProcessBatch(ctx, records), nil
+	return eng.ProcessBatch(ctx, records), nil
 }
 
 // runCLI processes simulated inputs locally for development and testing

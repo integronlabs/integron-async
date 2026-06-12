@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"strconv"
 
 	"github.com/integronlabs/integron-async/asyncapi"
 	"github.com/integronlabs/integron-async/helpers"
@@ -35,7 +34,11 @@ func (e *Engine) ProcessBatch(ctx context.Context, records []KafkaRecord) BatchR
 		if err != nil {
 			logrus.WithContext(ctx).Errorf("Failed to process message (offset=%d): %v", record.Offset, err)
 			failures = append(failures, BatchItemFailure{
-				ItemIdentifier: strconv.FormatInt(record.Offset, 10),
+				ItemIdentifier: KafkaItemIdentifier{
+					Topic:     record.Topic,
+					Partition: record.Partition,
+					Offset:    record.Offset,
+				},
 			})
 		}
 	}
@@ -102,6 +105,10 @@ func (e *Engine) processRecord(ctx context.Context, record KafkaRecord) error {
 
 // RunWorkflow executes the list of steps sequentially
 func RunWorkflow(ctx context.Context, stepsArray []interface{}, stepOutputs map[string]interface{}, initialInput interface{}) error {
+	if len(stepsArray) == 0 {
+		return fmt.Errorf("workflow has no steps defined")
+	}
+
 	stepsMap, err := helpers.CreateStepsMap(stepsArray)
 	if err != nil {
 		return err

@@ -64,7 +64,24 @@ func TestEngineProcessBatch(t *testing.T) {
 		t.Fatalf("Expected exactly 1 batch item failure, got %d", len(resp.BatchItemFailures))
 	}
 
-	if resp.BatchItemFailures[0].ItemIdentifier != "101" {
-		t.Errorf("Expected failed item identifier to be '101', got '%s'", resp.BatchItemFailures[0].ItemIdentifier)
+	failedId, ok := resp.BatchItemFailures[0].ItemIdentifier.(KafkaItemIdentifier)
+	if !ok {
+		t.Fatalf("Expected failed item identifier to be KafkaItemIdentifier, got %T", resp.BatchItemFailures[0].ItemIdentifier)
+	}
+
+	if failedId.Topic != "test-topic" || failedId.Partition != 0 || failedId.Offset != 101 {
+		t.Errorf("Expected failed item identifier to be for test-topic:0:101, got %+v", failedId)
+	}
+}
+
+func TestRunWorkflowEmpty(t *testing.T) {
+	err := RunWorkflow(context.Background(), nil, make(map[string]interface{}), nil)
+	if err == nil {
+		t.Error("Expected error when running workflow with nil steps, got nil")
+	}
+
+	err = RunWorkflow(context.Background(), []interface{}{}, make(map[string]interface{}), nil)
+	if err == nil {
+		t.Error("Expected error when running workflow with empty steps, got nil")
 	}
 }

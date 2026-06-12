@@ -13,9 +13,16 @@ type KafkaRecord struct {
 	Key              string `json:"key"`   // Base64-encoded
 }
 
+// KafkaItemIdentifier holds the coordinates for a specific Kafka record
+type KafkaItemIdentifier struct {
+	Topic     string `json:"topic"`
+	Partition int64  `json:"partition"`
+	Offset    int64  `json:"offset"`
+}
+
 // BatchItemFailure represents an individual record offset that failed processing
 type BatchItemFailure struct {
-	ItemIdentifier string `json:"itemIdentifier"`
+	ItemIdentifier interface{} `json:"itemIdentifier"`
 }
 
 // BatchResponse is the response format AWS Lambda expects for reporting partial batch failures

@@ -27,7 +27,7 @@ func (d *Document) ResolveChannelAddress(ref string) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("referenced channel key '%s' not found in document channels", key)
 	}
-	
+
 	// Fall back to channel key if Address is empty
 	if channel.Address == "" {
 		return key, nil

@@ -82,12 +82,12 @@ func runHTTP(ctx context.Context, stepMap map[string]interface{}, stepOutputs ma
 	if bodyVal, exists := stepMap["body"]; exists {
 		requestBodyMap, ok := bodyVal.(map[string]interface{})
 		if !ok {
-			return "invalid body format", "error", fmt.Errorf("body must be an object")
+			return nil, "error", fmt.Errorf("body must be an object")
 		}
 		requestBody := helpers.TransformBody(stepOutputs, requestBodyMap)
 		requestBodyJson, err := json.Marshal(requestBody)
 		if err != nil {
-			return err.Error(), "error", fmt.Errorf("failed to marshal request body: %w", err)
+			return nil, "error", fmt.Errorf("failed to marshal request body: %w", err)
 		}
 		s := string(requestBodyJson)
 		requestBodyString = &s
