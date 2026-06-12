@@ -13,14 +13,16 @@ func RemoveNull(input interface{}) interface{} {
 	}
 
 	if inputMap, ok := input.(map[string]interface{}); ok {
+		result := make(map[string]interface{})
 		for key, val := range inputMap {
-			if val == nil {
-				delete(inputMap, key)
-			} else {
-				inputMap[key] = RemoveNull(val)
+			if val != nil {
+				cleaned := RemoveNull(val)
+				if cleaned != nil {
+					result[key] = cleaned
+				}
 			}
 		}
-		return inputMap
+		return result
 	}
 
 	return input

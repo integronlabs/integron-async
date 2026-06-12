@@ -4,12 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/integronlabs/integron-async/helpers"
 )
+
+var httpClient = &http.Client{
+	Timeout: 30 * time.Second,
+}
 
 func getActions(responsesMap map[string]interface{}, statusCodeStr string) (map[string]interface{}, string, error) {
 	statusMap, ok := responsesMap[statusCodeStr].(map[string]interface{})
@@ -30,10 +35,15 @@ func getActions(responsesMap map[string]interface{}, statusCodeStr string) (map[
 	return outputMap, next, nil
 }
 
-func httpRequest(ctx context.Context, client *http.Client, method string, url string, requestBodyString string, headers map[string]interface{}, stepOutputs map[string]interface{}) (*http.Response, error) {
+func httpRequest(ctx context.Context, client *http.Client, method string, url string, requestBodyString *string, headers map[string]interface{}, stepOutputs map[string]interface{}) (*http.Response, error) {
 	url = helpers.Replace(url, stepOutputs)
 
-	req, err := http.NewRequestWithContext(ctx, method, url, strings.NewReader(requestBodyString))
+	var bodyReader io.Reader
+	if requestBodyString != nil {
+		bodyReader = strings.NewReader(*requestBodyString)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, url, bodyReader)
 	if err != nil {
 		return nil, err
 	}
@@ -57,22 +67,25 @@ func runHTTP(ctx context.Context, stepMap map[string]interface{}, stepOutputs ma
 	// get values
 	method, _ := stepMap["method"].(string)
 	url, _ := stepMap["url"].(string)
-	requestBodyMap, _ := stepMap["body"].(map[string]interface{})
 	headers, _ := stepMap["headers"].(map[string]interface{})
 	responsesMap, _ := stepMap["responses"].(map[string]interface{})
 
-	requestBody := helpers.TransformBody(stepOutputs, requestBodyMap)
-
-	requestBodyJson, err := json.Marshal(requestBody)
-	if err != nil {
-		return err.Error(), "error", fmt.Errorf("failed to marshal request body: %w", err)
+	var requestBodyString *string
+	if bodyVal, exists := stepMap["body"]; exists {
+		requestBodyMap, ok := bodyVal.(map[string]interface{})
+		if !ok {
+			return "invalid body format", "error", fmt.Errorf("body must be an object")
+		}
+		requestBody := helpers.TransformBody(stepOutputs, requestBodyMap)
+		requestBodyJson, err := json.Marshal(requestBody)
+		if err != nil {
+			return err.Error(), "error", fmt.Errorf("failed to marshal request body: %w", err)
+		}
+		s := string(requestBodyJson)
+		requestBodyString = &s
 	}
-	requestBodyString := string(requestBodyJson)
 
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-	}
-	resp, err := httpRequest(ctx, client, method, url, requestBodyString, headers, stepOutputs)
+	resp, err := httpRequest(ctx, httpClient, method, url, requestBodyString, headers, stepOutputs)
 	if err != nil {
 		return err.Error(), "error", err
 	}

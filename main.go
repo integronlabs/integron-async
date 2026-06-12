@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/integronlabs/integron-async/asyncapi"
@@ -17,7 +18,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var workflowEngine *engine.Engine
+var (
+	workflowEngine *engine.Engine
+	initOnce       sync.Once
+	initErr        error
+)
 
 func init() {
 	helpers.SetupLogging()
@@ -59,28 +64,36 @@ func loadSpec(ctx context.Context, localSpecPath string) ([]byte, error) {
 	}
 }
 
+func initEngine(ctx context.Context) {
+	specData, err := loadSpec(ctx, "docs/asyncapi.yaml")
+	if err != nil {
+		initErr = fmt.Errorf("failed to load spec: %w", err)
+		return
+	}
+
+	doc, err := asyncapi.Parse(specData)
+	if err != nil {
+		initErr = fmt.Errorf("failed to parse spec: %w", err)
+		return
+	}
+
+	topicMap, err := doc.GetTopicToOperationMap()
+	if err != nil {
+		initErr = fmt.Errorf("failed to map topics: %w", err)
+		return
+	}
+
+	workflowEngine = engine.NewEngine(topicMap)
+}
+
 // lambdaHandler is the entrypoint when running as an AWS Lambda function
 func lambdaHandler(ctx context.Context, records []engine.KafkaRecord) (engine.BatchResponse, error) {
-	if workflowEngine == nil {
-		specData, err := loadSpec(ctx, "docs/asyncapi.yaml")
-		if err != nil {
-			logrus.WithContext(ctx).Errorf("Failed to load AsyncAPI specification: %v", err)
-			return engine.BatchResponse{}, fmt.Errorf("failed to load spec: %w", err)
-		}
-
-		doc, err := asyncapi.Parse(specData)
-		if err != nil {
-			logrus.WithContext(ctx).Errorf("Failed to parse AsyncAPI specification: %v", err)
-			return engine.BatchResponse{}, fmt.Errorf("failed to parse spec: %w", err)
-		}
-
-		topicMap, err := doc.GetTopicToOperationMap()
-		if err != nil {
-			logrus.WithContext(ctx).Errorf("Failed to map topics from specification: %v", err)
-			return engine.BatchResponse{}, fmt.Errorf("failed to map topics: %w", err)
-		}
-
-		workflowEngine = engine.NewEngine(topicMap)
+	initOnce.Do(func() {
+		initEngine(ctx)
+	})
+	if initErr != nil {
+		logrus.WithContext(ctx).Errorf("Failed to initialize engine: %v", initErr)
+		return engine.BatchResponse{}, initErr
 	}
 
 	return workflowEngine.ProcessBatch(ctx, records), nil
