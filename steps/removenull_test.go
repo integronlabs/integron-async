@@ -47,8 +47,8 @@ func TestRunRemoveNull(t *testing.T) {
 		t.Fatalf("Expected output to be a map")
 	}
 
-	if outputMap["nilValue"] != nil {
-		t.Errorf("Expected nilValue to be removed, got: %v", outputMap["nilValue"])
+	if _, exists := outputMap["nilValue"]; exists {
+		t.Errorf("Expected 'nilValue' key to be completely removed from the output map")
 	}
 
 	if outputMap["keep"] != "value" {

@@ -124,11 +124,18 @@ func RunWorkflow(ctx context.Context, stepsArray []interface{}, stepOutputs map[
 		stepOutput, next, err = ProcessStep(ctx, currentStepKey, stepsMap, stepOutputs, stepInput)
 
 		if err != nil {
-			// If step failed and there's an error step defined, execute it (unless we are already executing the error step)
-			if currentStepKey != "error" {
-				if _, exists := stepsMap["error"]; exists {
-					logrus.WithContext(ctx).Warnf("Workflow step '%s' failed. Running error recovery step.", currentStepKey)
-					_, _, _ = ProcessStep(ctx, "error", stepsMap, stepOutputs, err)
+			// If the failing step is not an error step itself, find and execute the error recovery step
+			if currentStepMap, ok := stepsMap[currentStepKey].(map[string]interface{}); !ok || currentStepMap["type"] != "error" {
+				var errorStepName string
+				for name, stepObj := range stepsMap {
+					if sm, ok := stepObj.(map[string]interface{}); ok && sm["type"] == "error" {
+						errorStepName = name
+						break
+					}
+				}
+				if errorStepName != "" {
+					logrus.WithContext(ctx).Warnf("Workflow step '%s' failed. Running error recovery step '%s'.", currentStepKey, errorStepName)
+					_, _, _ = ProcessStep(ctx, errorStepName, stepsMap, stepOutputs, err)
 				}
 			}
 			return err

@@ -47,7 +47,10 @@ func TestRunTransformArray(t *testing.T) {
 	}
 
 	item0 := outputSlice[0].(map[string]interface{})
-	if item0["id"] != "1" || item0["name"] != "foo" || item0["extra"] != nil {
+	if item0["id"] != "1" || item0["name"] != "foo" {
 		t.Errorf("Unexpected values in item0: %v", item0)
+	}
+	if _, exists := item0["extra"]; exists {
+		t.Errorf("Expected 'extra' key to be completely omitted from transformed item, but it exists")
 	}
 }
