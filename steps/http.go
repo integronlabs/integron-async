@@ -101,7 +101,7 @@ func runHTTP(ctx context.Context, stepMap map[string]interface{}, stepOutputs ma
 	defer resp.Body.Close()
 
 	var responseData interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&responseData); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&responseData); err != nil && err != io.EOF {
 		return err.Error(), "error", err
 	}
 

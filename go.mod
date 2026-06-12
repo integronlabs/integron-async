@@ -1,6 +1,6 @@
 module github.com/integronlabs/integron-async
 
-go 1.26.4
+go 1.24
 
 require (
 	github.com/PaesslerAG/jsonpath v0.1.1

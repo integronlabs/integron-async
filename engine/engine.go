@@ -167,6 +167,18 @@ func ProcessStep(ctx context.Context, currentStepKey string, stepsMap map[string
 	}
 
 	if stepType == "error" {
+		if stepInput != nil {
+			if errVal, ok := stepInput.(error); ok {
+				stepOutputs["error"] = errVal.Error()
+			} else if strVal, ok := stepInput.(string); ok {
+				stepOutputs["error"] = strVal
+			} else {
+				stepOutputs["error"] = fmt.Sprintf("%v", stepInput)
+			}
+		}
+		if handler, exists := steps.GetStepHandler("error"); exists {
+			return handler(ctx, stepMap, stepOutputs)
+		}
 		var err error
 		if inputErr, ok := stepInput.(error); ok {
 			err = inputErr
