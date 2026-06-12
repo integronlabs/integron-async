@@ -1,0 +1,64 @@
+asyncapi: 3.0.0
+info:
+  title: Async Dog Facts Processor
+  version: 1.0.0
+  description: Receives requests for dog facts, fetches them from the dog API, and runs workflow transformations.
+
+channels:
+  dogFactRequests:
+    address: dogfact-requests-topic
+    summary: Channel where requests for dog facts are received.
+    messages:
+      factRequestMessage:
+        $ref: '#/components/messages/FactRequest'
+
+operations:
+  onFactRequest:
+    action: receive
+    channel:
+      $ref: '#/channels/dogFactRequests'
+    summary: Processes requests to fetch dog facts.
+    x-integron-steps:
+      - name: fetchFact
+        type: http
+        url: 'https://dogapi.dog/api/v2/facts?limit=$.message.payload.amount'
+        method: GET
+        responses:
+          '200':
+            output:
+              response: $.body
+              status: $.status
+            next: "arrayTransform"
+      - name: arrayTransform
+        type: transformarray
+        input: $.fetchFact.response.data
+        output:
+          fact: $.attributes.body
+          id: $.id
+        next: "removeNull"
+      - name: removeNull
+        type: removenull
+        input: $.arrayTransform
+        next: "responseMarshal"
+      - name: responseMarshal
+        type: transformobject
+        output:
+          data: $.removeNull
+        next: ""
+      - name: error
+        type: error
+        next: ""
+
+components:
+  messages:
+    FactRequest:
+      payload:
+        type: object
+        required:
+          - amount
+        properties:
+          amount:
+            type: integer
+            minimum: 1
+            maximum: 10
+            example: 5

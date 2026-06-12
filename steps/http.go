@@ -1,0 +1,145 @@
+package steps
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/integronlabs/integron-async/helpers"
+)
+
+var httpClient = &http.Client{
+	Timeout: 30 * time.Second,
+}
+
+func getActions(responsesMap map[string]interface{}, statusCodeStr string) (map[string]interface{}, string, error) {
+	statusMap, ok := responsesMap[statusCodeStr].(map[string]interface{})
+	if !ok {
+		statusMap, ok = responsesMap["default"].(map[string]interface{})
+		if !ok {
+			return nil, "error", fmt.Errorf("could not find actions for status %s", statusCodeStr)
+		}
+	}
+	outputMap, ok := statusMap["output"].(map[string]interface{})
+	if !ok {
+		return nil, "error", fmt.Errorf("invalid output format")
+	}
+	next, ok := statusMap["next"].(string)
+	if !ok {
+		return nil, "error", fmt.Errorf("invalid next format")
+	}
+	return outputMap, next, nil
+}
+
+func httpRequest(ctx context.Context, client *http.Client, method string, url string, requestBodyString *string, headers map[string]interface{}, stepOutputs map[string]interface{}) (*http.Response, error) {
+	url = helpers.Replace(url, stepOutputs)
+
+	var bodyReader io.Reader
+	if requestBodyString != nil {
+		bodyReader = strings.NewReader(*requestBodyString)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, url, bodyReader)
+	if err != nil {
+		return nil, err
+	}
+	// set headers
+	for key, value := range headers {
+		valueStr, ok := value.(string)
+		if ok {
+			valueStr = helpers.Replace(valueStr, stepOutputs)
+			req.Header.Set(key, valueStr)
+		}
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func runHTTP(ctx context.Context, stepMap map[string]interface{}, stepOutputs map[string]interface{}) (interface{}, string, error) {
+	method, ok := stepMap["method"].(string)
+	if !ok || method == "" {
+		return nil, "error", fmt.Errorf("missing or invalid HTTP method")
+	}
+	url, ok := stepMap["url"].(string)
+	if !ok || url == "" {
+		return nil, "error", fmt.Errorf("missing or invalid HTTP url")
+	}
+	headers, _ := stepMap["headers"].(map[string]interface{})
+	responsesMap, ok := stepMap["responses"].(map[string]interface{})
+	if !ok {
+		return nil, "error", fmt.Errorf("missing or invalid responses map")
+	}
+
+	var requestBodyString *string
+	if bodyVal, exists := stepMap["body"]; exists {
+		requestBodyMap, ok := bodyVal.(map[string]interface{})
+		if !ok {
+			return nil, "error", fmt.Errorf("body must be an object")
+		}
+		requestBody := helpers.TransformBody(stepOutputs, requestBodyMap)
+		requestBodyJson, err := json.Marshal(requestBody)
+		if err != nil {
+			return nil, "error", fmt.Errorf("failed to marshal request body: %w", err)
+		}
+		s := string(requestBodyJson)
+		requestBodyString = &s
+
+		// Default Content-Type to application/json if not explicitly set
+		hasContentType := false
+		if headers != nil {
+			for k := range headers {
+				if strings.EqualFold(k, "content-type") {
+					hasContentType = true
+					break
+				}
+			}
+		} else {
+			headers = make(map[string]interface{})
+			stepMap["headers"] = headers
+		}
+		if !hasContentType {
+			headers["Content-Type"] = "application/json"
+		}
+	}
+
+	resp, err := httpRequest(ctx, httpClient, method, url, requestBodyString, headers, stepOutputs)
+	if err != nil {
+		return err.Error(), "error", err
+	}
+
+	defer resp.Body.Close()
+
+	var responseData interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&responseData); err != nil && err != io.EOF {
+		return err.Error(), "error", err
+	}
+
+	responseMap := map[string]interface{}{
+		"status":  resp.StatusCode,
+		"headers": resp.Header,
+		"body":    responseData,
+	}
+
+	statusCodeStr := fmt.Sprintf("%d", resp.StatusCode)
+
+	outputMap, next, err := getActions(responsesMap, statusCodeStr)
+	if err != nil {
+		return err.Error(), "error", err
+	}
+
+	body := helpers.TransformBody(responseMap, outputMap)
+
+	return body, next, nil
+}
+
+func init() {
+	RegisterStep("http", runHTTP)
+}
