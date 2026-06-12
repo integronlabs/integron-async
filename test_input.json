@@ -1,0 +1,13 @@
+[
+  {
+    "eventSource": "SelfManagedKafka",
+    "bootstrapServers": "localhost:9092",
+    "topic": "dogfact-requests-topic",
+    "partition": 0,
+    "offset": 1001,
+    "timestamp": 1672531200000,
+    "timestampType": "CREATE_TIME",
+    "value": "eyJhbW91bnQiOiAyfQ==",
+    "key": "bWVzc2FnZS1rZXk="
+  }
+]
