@@ -13,7 +13,10 @@ func Replace(input string, stepOutputs interface{}) string {
 	matches := re.FindAllString(input, -1)
 
 	for _, match := range matches {
-		value, _ := jsonpath.Get(match, stepOutputs)
+		value, err := jsonpath.Get(match, stepOutputs)
+		if err != nil || value == nil {
+			continue
+		}
 		input = strings.ReplaceAll(input, match, fmt.Sprintf("%v", value))
 	}
 

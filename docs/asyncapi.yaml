@@ -43,7 +43,7 @@ operations:
       - name: responseMarshal
         type: transformobject
         output:
-          data: $.arrayTransform
+          data: $.removeNull
         next: ""
       - name: error
         type: error

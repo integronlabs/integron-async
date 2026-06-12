@@ -3,14 +3,13 @@ package helpers
 func RemoveNull(input interface{}) interface{} {
 	// remove null values from input
 	if inputArray, ok := input.([]interface{}); ok {
-		for i, val := range inputArray {
-			if val == nil {
-				inputArray = append(inputArray[:i], inputArray[i+1:]...)
-			} else {
-				inputArray[i] = RemoveNull(val)
+		var result []interface{}
+		for _, val := range inputArray {
+			if val != nil {
+				result = append(result, RemoveNull(val))
 			}
 		}
-		return inputArray
+		return result
 	}
 
 	if inputMap, ok := input.(map[string]interface{}); ok {

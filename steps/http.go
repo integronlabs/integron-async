@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/integronlabs/integron-async/helpers"
 )
@@ -62,10 +63,15 @@ func runHTTP(ctx context.Context, stepMap map[string]interface{}, stepOutputs ma
 
 	requestBody := helpers.TransformBody(stepOutputs, requestBodyMap)
 
-	requestBodyJson, _ := json.Marshal(requestBody)
+	requestBodyJson, err := json.Marshal(requestBody)
+	if err != nil {
+		return err.Error(), "error", fmt.Errorf("failed to marshal request body: %w", err)
+	}
 	requestBodyString := string(requestBodyJson)
 
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
 	resp, err := httpRequest(ctx, client, method, url, requestBodyString, headers, stepOutputs)
 	if err != nil {
 		return err.Error(), "error", err

@@ -13,7 +13,11 @@ func CreateStepsMap(stepsArray []interface{}) (map[string]interface{}, error) {
 		if !ok {
 			return nil, fmt.Errorf(INVALID_STEP_DEFINITION)
 		}
-		steps[stepsMap["name"].(string)] = stepsMap
+		name, ok := stepsMap["name"].(string)
+		if !ok || name == "" {
+			return nil, fmt.Errorf("missing or invalid step name")
+		}
+		steps[name] = stepsMap
 	}
 	return steps, nil
 }

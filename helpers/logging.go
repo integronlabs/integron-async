@@ -24,8 +24,8 @@ func SetupLogging() {
 		"panic": logrus.PanicLevel,
 	}
 
-	logLevel := logLevels[logLevelStr]
-	if logLevelStr == "" {
+	logLevel, ok := logLevels[logLevelStr]
+	if !ok {
 		logLevel = logrus.InfoLevel
 	}
 
